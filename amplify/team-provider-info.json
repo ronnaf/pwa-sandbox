@@ -1,0 +1,20 @@
+{
+  "dev": {
+    "awscloudformation": {
+      "AuthRoleName": "amplify-ropwa-dev-9e10a-authRole",
+      "UnauthRoleArn": "arn:aws:iam::723455866552:role/amplify-ropwa-dev-9e10a-unauthRole",
+      "AuthRoleArn": "arn:aws:iam::723455866552:role/amplify-ropwa-dev-9e10a-authRole",
+      "Region": "ap-southeast-1",
+      "DeploymentBucketName": "amplify-ropwa-dev-9e10a-deployment",
+      "UnauthRoleName": "amplify-ropwa-dev-9e10a-unauthRole",
+      "StackName": "amplify-ropwa-dev-9e10a",
+      "StackId": "arn:aws:cloudformation:ap-southeast-1:723455866552:stack/amplify-ropwa-dev-9e10a/8dfe4fb0-7f2b-11ef-b83a-0a7aa803ff3d",
+      "AmplifyAppId": "d3qf54wmw86za8"
+    },
+    "categories": {
+      "auth": {
+        "ropwab4a65c02": {}
+      }
+    }
+  }
+}
