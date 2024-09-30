@@ -13,8 +13,8 @@
       "profile",
       "aws.cognito.signin.user.admin"
     ],
-    "redirectSignIn": "http://localhost:5173/",
-    "redirectSignOut": "http://localhost:5173/",
+    "redirectSignIn": "http://localhost:5173/,https://ro-pwa.vercel.app/",
+    "redirectSignOut": "http://localhost:5173/,https://ro-pwa.vercel.app/",
     "responseType": "code"
   },
   "federationTarget": "COGNITO_USER_POOLS",
