@@ -1,36 +1,47 @@
 import React from "react";
 import { useState } from "react";
-import {
-  signUp,
-  confirmSignUp,
-  signIn,
-  signOut,
-  signInWithRedirect,
-  getCurrentUser,
-} from "aws-amplify/auth";
-import { Hub } from "aws-amplify/utils";
+import { Auth, Hub } from "aws-amplify";
+import { CognitoHostedUIIdentityProvider } from '@aws-amplify/auth';
 
-Hub.listen("auth", async ({ payload }) => {
-  switch (payload.event) {
-    case "signInWithRedirect": {
-      const user = await getCurrentUser();
-      console.log(`Hub.listen - signInWithRedirect user:`, user);
+Hub.listen("auth", async ({ payload: { event, data } }) => {
+  switch (event) {
+    case "autoSignIn": {
+      console.log(`Hub.listen - autoSignIn user:`, data);
+      break;
+    }
+    case "autoSignIn_failure": {
+      console.log(`Hub.listen - autoSignIn_failure`);
+      break;
+    }
+    case "signIn": {
+      console.log(`Hub.listen - signIn user:`, data);
+      break;
+    }
+    case "signIn_failure": {
+      console.log(`Hub.listen - signIn_failure data:`, data);
+      break;
+    }
+    case "signOut": {
+      console.log(`Hub.listen - signOut`);
       break;
     }
     case "signInWithRedirect_failure": {
-      console.log(`Hub.listen - signInWithRedirect_failure"`);
+      console.log(`Hub.listen - signInWithRedirect_failure`);
       break;
     }
     case "customOAuthState": {
-      const state = payload.data; // this will be customState provided on signInWithRedirect function
-      console.log(state);
+      console.log(`Hub.listen - customOAuthState data`, data);
       break;
     }
   }
 });
 
-function Box({ children }: {children: React.ReactNode}) {
-  return <div style={{margin: 8, padding: 8, border: '1px solid gainsboro'}}>{children}</div>;
+function Box({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{ margin: 8, padding: 8, border: "1px solid gainsboro" }}>
+      {children}
+    </div>
+  );
 }
 
 function App() {
@@ -41,15 +52,15 @@ function App() {
   const handleSignUp = async (e) => {
     e.preventDefault();
     try {
-      const result = await signUp({
+      const result = await Auth.signUp({
         username: email,
         password,
-        options: {
-          userAttributes: {
-            email,
-          },
-          // optional
-          autoSignIn: true, // or SignInOptions e.g { authFlowType: "USER_SRP_AUTH" }
+        attributes: {
+          email, // optional
+        },
+        autoSignIn: {
+          // optional - enables auto sign in after user is confirmed
+          enabled: true,
         },
       });
       console.log(`handleSignUp - result:`, result);
@@ -61,10 +72,7 @@ function App() {
   const handleConfirmation = async (e) => {
     e.preventDefault();
     try {
-      const result = await confirmSignUp({
-        username: email,
-        confirmationCode: code,
-      });
+      const result = await Auth.confirmSignUp(email, code);
       console.log(`handleConfirmSignUp - result:`, result);
     } catch (error) {
       console.log("error confirming sign up", error);
@@ -74,11 +82,8 @@ function App() {
   const handleSignIn = async (e) => {
     e.preventDefault();
     try {
-      const result = await signIn({
-        username: email,
-        password,
-      });
-      console.log(`handleSignIn - result:`, result);
+      const user = await Auth.signIn(email, password);
+      console.log(`handleSignIn - user:`, user);
     } catch (error) {
       console.log("error signing in", error);
     }
@@ -86,7 +91,7 @@ function App() {
 
   const handleSignOut = async () => {
     try {
-      await signOut();
+      await Auth.signOut({ global: true });
       console.log("signed out");
     } catch (error) {
       console.log("error signing out: ", error);
@@ -94,9 +99,7 @@ function App() {
   };
 
   const handleGoogleSignIn = async () => {
-    signInWithRedirect({
-      provider: "Google",
-    });
+    Auth.federatedSignIn({ provider: CognitoHostedUIIdentityProvider.Google });
   };
 
   return (
