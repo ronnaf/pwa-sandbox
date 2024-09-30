@@ -29,6 +29,10 @@ Hub.listen("auth", async ({ payload }) => {
   }
 });
 
+function Box({ children }: {children: React.ReactNode}) {
+  return <div style={{margin: 8, padding: 8, border: '1px solid gainsboro'}}>{children}</div>;
+}
+
 function App() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -83,7 +87,7 @@ function App() {
   const handleSignOut = async () => {
     try {
       await signOut();
-      console.log('signed out')
+      console.log("signed out");
     } catch (error) {
       console.log("error signing out: ", error);
     }
@@ -97,7 +101,7 @@ function App() {
 
   return (
     <>
-      <div>
+      <Box>
         <strong>Sign up</strong>
         <form onSubmit={handleSignUp}>
           <div>
@@ -120,8 +124,8 @@ function App() {
           </div>
           <button type="submit">Sign up</button>
         </form>
-      </div>
-      <div>
+      </Box>
+      <Box>
         <strong>Confirm sign up</strong>
         <form onSubmit={handleConfirmation}>
           <div>
@@ -139,8 +143,8 @@ function App() {
           </div>
           <button type="submit">Confirm sign up</button>
         </form>
-      </div>
-      <div>
+      </Box>
+      <Box>
         <strong>Sign in</strong>
         <form onSubmit={handleSignIn}>
           <div>
@@ -163,13 +167,13 @@ function App() {
           </div>
           <button type="submit">Sign in</button>
         </form>
-      </div>
-      <div>
+      </Box>
+      <Box>
         <button onClick={handleGoogleSignIn}>Sign in with Google</button>
-      </div>
-      <div>
+      </Box>
+      <Box>
         <button onClick={handleSignOut}>Sign out</button>
-      </div>
+      </Box>
     </>
   );
 }
