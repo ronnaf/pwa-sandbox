@@ -1,7 +1,31 @@
 import React from "react";
 import { useState } from "react";
 import { Auth, Hub } from "aws-amplify";
-import { CognitoHostedUIIdentityProvider } from '@aws-amplify/auth';
+import { CognitoHostedUIIdentityProvider } from "@aws-amplify/auth";
+
+type FederatedSignInPayload = {
+  provider: "Google"; // | 'SignInWithApple';
+};
+
+type PostMessageData = {
+  idToken: string;
+  expiresAt: string;
+  name: string;
+  email?: string;
+  picture?: string;
+};
+
+declare global {
+  interface Window {
+    webkit?: {
+      messageHandlers?: {
+        federatedSignIn?: {
+          postMessage?: (payload: FederatedSignInPayload) => Promise<string>;
+        };
+      };
+    };
+  }
+}
 
 Hub.listen("auth", async ({ payload: { event, data } }) => {
   switch (event) {
@@ -35,6 +59,40 @@ Hub.listen("auth", async ({ payload: { event, data } }) => {
     }
   }
 });
+
+const isIosShell = () => navigator.userAgent.includes("PWAShell");
+
+const iosShellHandlers = {
+  Google: async () => {
+    try {
+      const json =
+        await window.webkit?.messageHandlers?.federatedSignIn?.postMessage?.({
+          provider: "Google",
+        });
+      console.log(`Google: - json:`, json);
+      if (!json) throw new Error("No result");
+
+      const response: PostMessageData = JSON.parse(json);
+      console.log(`Google: - response:`, response.idToken);
+      console.log(`Google: - response.idToken:`, response.idToken);
+
+      const result = await Auth.federatedSignIn(
+        "google",
+        { token: response.idToken, expires_at: parseInt(response.expiresAt) },
+        {
+          name: response.name,
+          email: response.email,
+          picture: response.picture,
+        }
+      );
+      console.log(`Google: - result:`, result);
+      return result;
+    } catch (e) {
+      console.log(`Google: - e:`, e);
+      return;
+    }
+  },
+};
 
 function Box({ children }: { children: React.ReactNode }) {
   return (
@@ -99,7 +157,12 @@ function App() {
   };
 
   const handleGoogleSignIn = async () => {
-    Auth.federatedSignIn({ provider: CognitoHostedUIIdentityProvider.Google });
+    if (isIosShell()) {
+      return iosShellHandlers.Google();
+    }
+    return Auth.federatedSignIn({
+      provider: CognitoHostedUIIdentityProvider.Google,
+    });
   };
 
   return (
