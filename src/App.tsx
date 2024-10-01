@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { useState } from "react";
 import { Auth, Hub } from "aws-amplify";
 import { CognitoHostedUIIdentityProvider } from "@aws-amplify/auth";
@@ -27,38 +27,9 @@ declare global {
   }
 }
 
-Hub.listen("auth", async ({ payload: { event, data } }) => {
-  switch (event) {
-    case "autoSignIn": {
-      console.log(`Hub.listen - autoSignIn user:`, data);
-      break;
-    }
-    case "autoSignIn_failure": {
-      console.log(`Hub.listen - autoSignIn_failure`);
-      break;
-    }
-    case "signIn": {
-      console.log(`Hub.listen - signIn user:`, data);
-      break;
-    }
-    case "signIn_failure": {
-      console.log(`Hub.listen - signIn_failure data:`, data);
-      break;
-    }
-    case "signOut": {
-      console.log(`Hub.listen - signOut`);
-      break;
-    }
-    case "signInWithRedirect_failure": {
-      console.log(`Hub.listen - signInWithRedirect_failure`);
-      break;
-    }
-    case "customOAuthState": {
-      console.log(`Hub.listen - customOAuthState data`, data);
-      break;
-    }
-  }
-});
+const randomId = () =>
+  Math.random().toString(36).substring(2, 15) +
+  Math.random().toString(36).substring(2, 15);
 
 const isIosShell = () => navigator.userAgent.includes("PWAShell");
 
@@ -108,6 +79,55 @@ function App() {
   const [code, setCode] = useState("");
   const [allowNativeScriptHandler, setAllowNativeScriptHandler] =
     useState(false);
+  const [logs, setLogs] = useState<
+    { id: string; origin: string; value?: unknown }[]
+  >([]);
+
+  const log = (origin: string, value?: unknown) => {
+    setLogs((prev) => prev.concat({ id: randomId(), origin, value }));
+  };
+
+  useEffect(() => {
+    const unsubscribe = Hub.listen(
+      "auth",
+      async ({ payload: { event, data } }) => {
+        switch (event) {
+          case "autoSignIn": {
+            log(`Hub.listen - autoSignIn user`, data);
+            break;
+          }
+          case "autoSignIn_failure": {
+            log(`Hub.listen - autoSignIn_failure`);
+            break;
+          }
+          case "signIn": {
+            log(`Hub.listen - signIn user:`, data);
+            break;
+          }
+          case "signIn_failure": {
+            log(`Hub.listen - signIn_failure data:`, data);
+            break;
+          }
+          case "signOut": {
+            log(`Hub.listen - signOut`);
+            break;
+          }
+          case "signInWithRedirect_failure": {
+            log(`Hub.listen - signInWithRedirect_failure`);
+            break;
+          }
+          case "customOAuthState": {
+            log(`Hub.listen - customOAuthState data`, data);
+            break;
+          }
+        }
+      }
+    );
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   const handleSignUp = async (e) => {
     e.preventDefault();
@@ -123,9 +143,9 @@ function App() {
           enabled: true,
         },
       });
-      console.log(`handleSignUp - result:`, result);
+      log(`handleSignUp - result:`, result);
     } catch (error) {
-      console.log("error signing up:", error);
+      log("error signing up:", error);
     }
   };
 
@@ -133,28 +153,23 @@ function App() {
     e.preventDefault();
     try {
       const result = await Auth.confirmSignUp(email, code);
-      console.log(`handleConfirmSignUp - result:`, result);
+      log(`handleConfirmSignUp - result:`, result);
     } catch (error) {
-      console.log("error confirming sign up", error);
+      log("error confirming sign up", error);
     }
   };
 
   const handleSignIn = async (e) => {
     e.preventDefault();
-    try {
-      const user = await Auth.signIn(email, password);
-      console.log(`handleSignIn - user:`, user);
-    } catch (error) {
-      console.log("error signing in", error);
-    }
+    await Auth.signIn(email, password);
   };
 
   const handleSignOut = async () => {
     try {
       await Auth.signOut({ global: true });
-      console.log("signed out");
+      log("signed out");
     } catch (error) {
-      console.log("error signing out: ", error);
+      log("error signing out: ", error);
     }
   };
 
@@ -255,6 +270,15 @@ function App() {
       </Box>
       <Box>
         <button onClick={handleSignOut}>Sign out</button>
+      </Box>
+      <Box>
+        {logs.map((log) => (
+          <pre key={log.id}>
+            <code>
+              {JSON.stringify({ origin: log.origin, value: log.value })}
+            </code>
+          </pre>
+        ))}
       </Box>
     </>
   );
