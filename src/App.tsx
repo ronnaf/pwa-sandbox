@@ -82,6 +82,7 @@ function App() {
   const [logs, setLogs] = useState<
     { id: string; origin: string; value?: unknown }[]
   >([]);
+  const [user, setUser] = useState();
 
   const log = (origin: string, value?: unknown) => {
     setLogs((prev) => prev.concat({ id: randomId(), origin, value }));
@@ -167,7 +168,6 @@ function App() {
   const handleSignOut = async () => {
     try {
       await Auth.signOut({ global: true });
-      log("signed out");
     } catch (error) {
       log("error signing out: ", error);
     }
@@ -180,6 +180,17 @@ function App() {
     return Auth.federatedSignIn({
       provider: CognitoHostedUIIdentityProvider.Google,
     });
+  };
+
+  const handleGetCurrentAuthUser = async () => {
+    try {
+      const user = await Auth.currentAuthenticatedUser({
+        bypassCache: true,
+      });
+      setUser(user);
+    } catch (e) {
+      log(`handleGetCurrentAuthUser - e:`, e);
+    }
   };
 
   return (
@@ -272,6 +283,17 @@ function App() {
         <button onClick={handleSignOut}>Sign out</button>
       </Box>
       <Box>
+        <button onClick={handleGetCurrentAuthUser}>
+          Get current authenticated user
+        </button>
+        {user && (
+          <pre>
+            <code>{JSON.stringify(user)}</code>
+          </pre>
+        )}
+      </Box>
+      <Box>
+        <strong>Logs</strong>
         {logs.map((log) => (
           <pre key={log.id}>
             <code>
