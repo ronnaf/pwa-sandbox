@@ -106,6 +106,8 @@ function App() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
+  const [allowNativeScriptHandler, setAllowNativeScriptHandler] =
+    useState(false);
 
   const handleSignUp = async (e) => {
     e.preventDefault();
@@ -157,7 +159,7 @@ function App() {
   };
 
   const handleGoogleSignIn = async () => {
-    if (isIosShell()) {
+    if (isIosShell() && allowNativeScriptHandler) {
       return iosShellHandlers.Google();
     }
     return Auth.federatedSignIn({
@@ -235,7 +237,21 @@ function App() {
         </form>
       </Box>
       <Box>
-        <button onClick={handleGoogleSignIn}>Sign in with Google</button>
+        {isIosShell() && (
+          <div>
+            <label>
+              <input
+                type="checkbox"
+                checked={allowNativeScriptHandler}
+                onChange={() => setAllowNativeScriptHandler((is) => !is)}
+              />
+              Allow native script handler
+            </label>
+          </div>
+        )}
+        <div>
+          <button onClick={handleGoogleSignIn}>Sign in with Google</button>
+        </div>
       </Box>
       <Box>
         <button onClick={handleSignOut}>Sign out</button>
