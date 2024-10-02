@@ -3,7 +3,7 @@
     "details": [
       {
         "appIDs": [
-          "ABCDE12345.app.vercel.ro-pwa"
+          "3SYSAUSTTK.app.vercel.ro-pwa"
         ],
         "components": [
           {
@@ -16,7 +16,7 @@
   },
   "webcredentials": {
     "apps": [
-      "ABCDE12345.app.vercel.ro-pwa"
+      "3SYSAUSTTK.app.vercel.ro-pwa"
     ]
   }
 }
