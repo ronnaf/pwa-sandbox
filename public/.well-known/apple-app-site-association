@@ -1,0 +1,22 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": [
+          "ABCDE12345.app.vercel.ro-pwa"
+        ],
+        "components": [
+          {
+            "/": "/*",
+            "comment": "Matches any URL with a path that starts with /."
+          }
+        ]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": [
+      "ABCDE12345.app.vercel.ro-pwa"
+    ]
+  }
+}
