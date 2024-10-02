@@ -3,7 +3,7 @@
     "details": [
       {
         "appIDs": [
-          "3SYSAUSTTK.app.vercel.ro-pwa"
+          "X7LG4QZ6CV.app.vercel.ro-pwa"
         ],
         "components": [
           {
@@ -16,7 +16,7 @@
   },
   "webcredentials": {
     "apps": [
-      "3SYSAUSTTK.app.vercel.ro-pwa"
+      "X7LG4QZ6CV.app.vercel.ro-pwa"
     ]
   }
 }
