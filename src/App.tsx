@@ -1,7 +1,11 @@
 import React, { useEffect } from "react";
 import { useState } from "react";
 import { Auth, Hub } from "aws-amplify";
-import { CognitoHostedUIIdentityProvider } from "@aws-amplify/auth";
+import {
+  CognitoHostedUIIdentityProvider,
+  CognitoUser,
+} from "@aws-amplify/auth";
+import { QRCodeCanvas } from "qrcode.react";
 
 type FederatedSignInPayload = {
   provider: "Google"; // | 'SignInWithApple';
@@ -31,7 +35,7 @@ const randomId = () =>
   Math.random().toString(36).substring(2, 15) +
   Math.random().toString(36).substring(2, 15);
 
-const isIosShell = () => navigator.userAgent.includes("PWAShell");
+const isIosShell = () => true; // navigator.userAgent.includes("PWAShell");
 
 const iosShellHandlers = {
   Google: async () => {
@@ -65,24 +69,37 @@ const iosShellHandlers = {
   },
 };
 
-function Box({ children }: { children: React.ReactNode }) {
+type BoxProps = {
+  children: React.ReactNode;
+  style?: React.CSSProperties;
+};
+
+function Box({ children, style }: BoxProps) {
   return (
-    <div style={{ margin: 8, padding: 8, border: "1px solid gainsboro" }}>
+    <div
+      style={{ margin: 8, padding: 8, border: "1px solid gainsboro", ...style }}
+    >
       {children}
     </div>
   );
 }
 
+const emails = ["ronna+mfa@yopmail.com", "ronna+nomfa@yopmail.com"];
+
 function App() {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [code, setCode] = useState("");
+  const [password, setPassword] = useState("Password1!");
+  const [emailVerificationCode, setEmailVerificationCode] = useState("");
   const [allowNativeScriptHandler, setAllowNativeScriptHandler] =
     useState(false);
   const [logs, setLogs] = useState<
     { id: string; origin: string; value?: unknown }[]
   >([]);
-  const [user, setUser] = useState();
+  const [user, setUser] = useState<CognitoUser | null>(null);
+  const [otpAuthUri, setOtpAuthUri] = useState<string | null>(null);
+  const [totpSetUpCode, setTotpSetUpCode] = useState("");
+  const [otp, setOtp] = useState("");
+  const [mfaRequired, setMfaRequired] = useState(false);
 
   const log = (origin: string, value?: unknown) => {
     setLogs((prev) => prev.concat({ id: randomId(), origin, value }));
@@ -153,7 +170,7 @@ function App() {
   const handleConfirmation = async (e) => {
     e.preventDefault();
     try {
-      const result = await Auth.confirmSignUp(email, code);
+      const result = await Auth.confirmSignUp(email, emailVerificationCode);
       log(`handleConfirmSignUp - result:`, result);
     } catch (error) {
       log("error confirming sign up", error);
@@ -162,12 +179,20 @@ function App() {
 
   const handleSignIn = async (e) => {
     e.preventDefault();
-    await Auth.signIn(email, password);
+    try {
+      const result = await Auth.signIn(email, password);
+      setMfaRequired(result.challengeName === "SOFTWARE_TOKEN_MFA");
+      log(`handleSignIn - result:`, result);
+      setUser(result);
+    } catch (e) {
+      log(`handleSignIn - e:`, e);
+    }
   };
 
   const handleSignOut = async () => {
     try {
       await Auth.signOut({ global: true });
+      window.location.reload();
     } catch (error) {
       log("error signing out: ", error);
     }
@@ -188,13 +213,82 @@ function App() {
         bypassCache: true,
       });
       setUser(user);
+      log(`handleGetCurrentAuthUser - user:`, user);
     } catch (e) {
       log(`handleGetCurrentAuthUser - e:`, e);
     }
   };
 
+  async function getPreferredMFAType() {
+    try {
+      // Will retrieve the current MFA type from cache
+      // `bypassCache` is optional and by default is false.
+      // If set to true, it will get the MFA type from server-side
+      // instead of from local cache.
+      const data = await Auth.getPreferredMFA(user, { bypassCache: false });
+      log(`getPreferredMFAType - data:`, data);
+    } catch (err) {
+      log(`getPreferredMFAType - err:`, err);
+    }
+  }
+
+  async function initiateTotpSetup() {
+    try {
+      if (!user) throw new Error("No user to setup TOTP");
+      const secretCode = await Auth.setupTOTP(user);
+      const username = user.getUsername();
+      const issuer = "Carepatron";
+      const otpAuthUri =
+        "otpauth://totp/AWSCognito:" +
+        username +
+        "?secret=" +
+        secretCode +
+        "&issuer=" +
+        issuer;
+      setOtpAuthUri(otpAuthUri);
+      log(`initiateTotpSetup - otpAuthUri:`, otpAuthUri);
+    } catch (e) {
+      log(`initiateTotpSetup - e:`, e);
+    }
+  }
+
+  async function verifyTotpSetUpToken() {
+    // Then you will have your TOTP account in your TOTP-generating app (like Google Authenticator)
+    // use the generated one-time password to verify the setup.
+    try {
+      const cognitoUserSession = await Auth.verifyTotpToken(
+        user,
+        totpSetUpCode
+      );
+      log(`verifyTotpToken - cognitoUserSession:`, cognitoUserSession);
+      // Don't forget to set TOTP as the preferred MFA method.
+      await Auth.setPreferredMFA(user, "TOTP");
+    } catch (error) {
+      // Token is not verified
+      log(`verifyTotpToken - error:`, error);
+    }
+  }
+
+  async function verifySignInOtp() {
+    // Finally, when sign-in with MFA is enabled, use the `confirmSignIn` API
+    // to pass the TOTP code and MFA type.
+    try {
+      const result = await Auth.confirmSignIn(user, otp, "SOFTWARE_TOKEN_MFA");
+      log(`verifySignInOtp - result:`, result);
+    } catch (e) {
+      log(`verifySignInOtp - e:`, e);
+    }
+  }
+
   return (
-    <>
+    <div style={{ marginInline: "auto", maxWidth: "512px" }}>
+      <Box>
+        {emails.map((email) => (
+          <div key={email}>
+            <button onClick={() => setEmail(email)}>select</button> {email}
+          </div>
+        ))}
+      </Box>
       <Box>
         <strong>Sign up</strong>
         <form onSubmit={handleSignUp}>
@@ -218,25 +312,26 @@ function App() {
           </div>
           <button type="submit">Sign up</button>
         </form>
-      </Box>
-      <Box>
-        <strong>Confirm sign up</strong>
-        <form onSubmit={handleConfirmation}>
-          <div>
-            <label>Email:</label>
-            <input type="email" value={email} disabled />
-          </div>
-          <div>
-            <label>Code:</label>
-            <input
-              type="text"
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              required
-            />
-          </div>
-          <button type="submit">Confirm sign up</button>
-        </form>
+        <hr style={{ borderStyle: "dashed", color: "gainsboro" }} />
+        <div>
+          <strong>Confirm sign up</strong>
+          <form onSubmit={handleConfirmation}>
+            <div>
+              <label>Email:</label>
+              <input type="email" value={email} disabled />
+            </div>
+            <div>
+              <label>Code:</label>
+              <input
+                type="text"
+                value={emailVerificationCode}
+                onChange={(e) => setEmailVerificationCode(e.target.value)}
+                required
+              />
+            </div>
+            <button type="submit">Confirm sign up</button>
+          </form>
+        </div>
       </Box>
       <Box>
         <strong>Sign in</strong>
@@ -261,48 +356,91 @@ function App() {
           </div>
           <button type="submit">Sign in</button>
         </form>
-      </Box>
-      <Box>
-        {isIosShell() && (
-          <div>
-            <label>
-              <input
-                type="checkbox"
-                checked={allowNativeScriptHandler}
-                onChange={() => setAllowNativeScriptHandler((is) => !is)}
-              />
-              Allow native script handler
-            </label>
-          </div>
-        )}
+        <hr style={{ borderStyle: "dashed", color: "gainsboro" }} />
         <div>
-          <button onClick={handleGoogleSignIn}>Sign in with Google</button>
+          {isIosShell() && (
+            <div>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={allowNativeScriptHandler}
+                  onChange={() => setAllowNativeScriptHandler((is) => !is)}
+                />
+                Allow native script handler
+              </label>
+            </div>
+          )}
+          <div>
+            <button onClick={handleGoogleSignIn}>Sign in with Google</button>
+          </div>
         </div>
-      </Box>
-      <Box>
-        <button onClick={handleSignOut}>Sign out</button>
+        <hr style={{ borderStyle: "dashed", color: "gainsboro" }} />
+        <div>
+          <input
+            type="text"
+            placeholder="OTP"
+            value={otp}
+            onChange={(e) => setOtp(e.target.value)}
+          />
+          <button onClick={verifySignInOtp}>Verify</button>
+          {mfaRequired && (
+            <span style={{ color: "red" }}> ← MFA is required</span>
+          )}
+        </div>
       </Box>
       <Box>
         <button onClick={handleGetCurrentAuthUser}>
           Get current authenticated user
         </button>
-        {user && (
-          <pre>
-            <code>{JSON.stringify(user)}</code>
-          </pre>
-        )}
+      </Box>
+      <Box
+        style={{
+          display: "flex",
+          alignItems: "start",
+          alignContent: "space-between",
+        }}
+      >
+        <div style={{ flex: 1 }}>
+          <button onClick={initiateTotpSetup}>Initiate TOTP setup</button>
+          <div>
+            <input
+              type="text"
+              placeholder="TOTP Code"
+              value={totpSetUpCode}
+              onChange={(e) => setTotpSetUpCode(e.target.value)}
+            />
+            <button onClick={verifyTotpSetUpToken}>Verify</button>
+          </div>
+        </div>
+        {otpAuthUri && <QRCodeCanvas size={200} value={otpAuthUri} />}
       </Box>
       <Box>
-        <strong>Logs</strong>
+        <button onClick={getPreferredMFAType}>Get preferred MFA type</button>
+      </Box>
+      <Box>
+        <button onClick={handleSignOut}>Sign out</button>
+      </Box>
+      <Box>
+        <div style={{ display: "flex", justifyContent: "space-between" }}>
+          <strong>Logs</strong>
+          <button onClick={() => setLogs([])}>Clear</button>
+        </div>
         {logs.map((log) => (
-          <pre key={log.id}>
+          <pre
+            key={log.id}
+            style={{ border: "1px dashed gainsboro", padding: 8 }}
+          >
             <code>
-              {JSON.stringify({ origin: log.origin, value: log.value })}
+              {JSON.stringify(
+                { origin: log.origin, value: log.value },
+                undefined,
+                2
+              )}
             </code>
           </pre>
         ))}
       </Box>
-    </>
+    </div>
   );
 }
 

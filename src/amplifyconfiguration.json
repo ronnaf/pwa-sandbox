@@ -1,6 +1,6 @@
 {
   "aws_project_region": "ap-southeast-1",
-  "aws_cognito_identity_pool_id": "ap-southeast-1:125e8c50-4b04-4179-9a2a-bbdb6fa98bfd",
+  "aws_cognito_identity_pool_id": "ap-southeast-1:3e82f40f-339f-447c-8e92-fcb97f4eb4b2",
   "aws_cognito_region": "ap-southeast-1",
   "aws_user_pools_id": "ap-southeast-1_U77SPETjO",
   "aws_user_pools_web_client_id": "rre8icrvp0v4edon7dna2c242",
@@ -27,9 +27,9 @@
   "aws_cognito_signup_attributes": [
     "EMAIL"
   ],
-  "aws_cognito_mfa_configuration": "OFF",
+  "aws_cognito_mfa_configuration": "OPTIONAL",
   "aws_cognito_mfa_types": [
-    "SMS"
+    "TOTP"
   ],
   "aws_cognito_password_protection_settings": {
     "passwordPolicyMinLength": 8,
