@@ -10,6 +10,7 @@
     ],
     "mfaConfiguration": "OPTIONAL",
     "mfaTypes": [
+      "SMS Text Message",
       "TOTP"
     ],
     "smsAuthenticationMessage": "Hey, there! Your login code is {####}.",

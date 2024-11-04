@@ -29,6 +29,7 @@
   ],
   "aws_cognito_mfa_configuration": "OPTIONAL",
   "aws_cognito_mfa_types": [
+    "SMS",
     "TOTP"
   ],
   "aws_cognito_password_protection_settings": {

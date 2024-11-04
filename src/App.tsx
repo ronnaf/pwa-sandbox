@@ -1,11 +1,10 @@
-import React, { useEffect } from "react";
-import { useState } from "react";
-import { Auth, Hub } from "aws-amplify";
 import {
   CognitoHostedUIIdentityProvider,
   CognitoUser,
 } from "@aws-amplify/auth";
+import { Auth, Hub } from "aws-amplify";
 import { QRCodeCanvas } from "qrcode.react";
+import React, { useEffect, useState } from "react";
 
 type FederatedSignInPayload = {
   provider: "Google"; // | 'SignInWithApple';
@@ -77,18 +76,45 @@ type BoxProps = {
 function Box({ children, style }: BoxProps) {
   return (
     <div
-      style={{ margin: 8, padding: 8, border: "1px solid gainsboro", ...style }}
+      style={{
+        margin: 8,
+        padding: 8,
+        border: "1px solid grey",
+        height: "fit-content",
+        ...style,
+      }}
     >
       {children}
     </div>
   );
 }
 
-const emails = ["ronna+mfa@yopmail.com", "ronna+nomfa@yopmail.com"];
+const users = [
+  {
+    email: "ronna+mfa@yopmail.com",
+    password: "Password1!",
+  },
+  {
+    email: "ronna+nomfa@yopmail.com",
+    password: "Password1!",
+  },
+  {
+    email: "ronna+mfa1@yopmail.com",
+    password: "4d96c27e-fa9b-5e03-96d9-1e6b86531602",
+  },
+  {
+    email: "ronna@carepatron.com",
+    password: "7pF@9qD$XeL2!vWz",
+  },
+  {
+    email: "ronna.firmo1@gmail.com",
+    password: "7pF@9qD$XeL2!vWz",
+  },
+];
 
 function App() {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("Password1!");
+  const [password, setPassword] = useState("");
   const [emailVerificationCode, setEmailVerificationCode] = useState("");
   const [allowNativeScriptHandler, setAllowNativeScriptHandler] =
     useState(false);
@@ -96,13 +122,20 @@ function App() {
     { id: string; origin: string; value?: unknown }[]
   >([]);
   const [user, setUser] = useState<CognitoUser | null>(null);
+  const [tempUser, setTempUser] = useState<CognitoUser | null>(null);
   const [otpAuthUri, setOtpAuthUri] = useState<string | null>(null);
   const [totpSetUpCode, setTotpSetUpCode] = useState("");
   const [otp, setOtp] = useState("");
-  const [mfaRequired, setMfaRequired] = useState(false);
+  const [challengeName, setChallengeName] = useState("");
 
   const log = (origin: string, value?: unknown) => {
-    setLogs((prev) => prev.concat({ id: randomId(), origin, value }));
+    const parsedValue =
+      value instanceof Error
+        ? { message: value.message, name: value.name }
+        : value;
+    setLogs((prev) =>
+      prev.concat({ id: randomId(), origin, value: parsedValue })
+    );
   };
 
   useEffect(() => {
@@ -150,11 +183,14 @@ function App() {
   const handleSignUp = async (e) => {
     e.preventDefault();
     try {
+      console.log(`handleSignUp - email:`, { email, password });
+
       const result = await Auth.signUp({
         username: email,
         password,
         attributes: {
-          email, // optional
+          email,
+          phone_number: "+639554534759",
         },
         autoSignIn: {
           // optional - enables auto sign in after user is confirmed
@@ -181,10 +217,11 @@ function App() {
     e.preventDefault();
     try {
       const result = await Auth.signIn(email, password);
-      setMfaRequired(result.challengeName === "SOFTWARE_TOKEN_MFA");
+      setChallengeName(result.challengeName);
       log(`handleSignIn - result:`, result);
-      setUser(result);
+      setTempUser(result);
     } catch (e) {
+      console.log(`handleSignIn - e:`, e);
       log(`handleSignIn - e:`, e);
     }
   };
@@ -237,7 +274,7 @@ function App() {
       if (!user) throw new Error("No user to setup TOTP");
       const secretCode = await Auth.setupTOTP(user);
       const username = user.getUsername();
-      const issuer = "Carepatron";
+      const issuer = "PWA Sandbox";
       const otpAuthUri =
         "otpauth://totp/AWSCognito:" +
         username +
@@ -262,7 +299,7 @@ function App() {
       );
       log(`verifyTotpToken - cognitoUserSession:`, cognitoUserSession);
       // Don't forget to set TOTP as the preferred MFA method.
-      await Auth.setPreferredMFA(user, "TOTP");
+      // await Auth.setPreferredMFA(user, "TOTP");
     } catch (error) {
       // Token is not verified
       log(`verifyTotpToken - error:`, error);
@@ -273,7 +310,10 @@ function App() {
     // Finally, when sign-in with MFA is enabled, use the `confirmSignIn` API
     // to pass the TOTP code and MFA type.
     try {
-      const result = await Auth.confirmSignIn(user, otp, "SOFTWARE_TOKEN_MFA");
+      if (!challengeName) throw new Error("No challenge name");
+      if (!tempUser) throw new Error("No temp user");
+      // @ts-expect-error - too lazy to add correct types
+      const result = await Auth.confirmSignIn(tempUser, otp, challengeName);
       log(`verifySignInOtp - result:`, result);
     } catch (e) {
       log(`verifySignInOtp - e:`, e);
@@ -281,11 +321,19 @@ function App() {
   }
 
   return (
-    <div style={{ marginInline: "auto", maxWidth: "512px" }}>
+    <div style={{ display: "flex", flexWrap: "wrap" }}>
       <Box>
-        {emails.map((email) => (
-          <div key={email}>
-            <button onClick={() => setEmail(email)}>select</button> {email}
+        {users.map((user) => (
+          <div key={user.email}>
+            <button
+              onClick={() => {
+                setEmail(user.email);
+                setPassword(user.password);
+              }}
+            >
+              select
+            </button>{" "}
+            {user.email}
           </div>
         ))}
       </Box>
@@ -304,7 +352,6 @@ function App() {
           <div>
             <label>Password:</label>
             <input
-              type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -348,7 +395,6 @@ function App() {
           <div>
             <label>Password:</label>
             <input
-              type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -375,6 +421,55 @@ function App() {
           </div>
         </div>
         <hr style={{ borderStyle: "dashed", color: "gainsboro" }} />
+        <div style={{ color: "red" }}>{challengeName}</div>
+        {challengeName === "SELECT_MFA_TYPE" && (
+          <div>
+            {/* @ts-expect-error - challengeParam not available as type */}
+            {JSON.parse(tempUser.challengeParam.MFAS_CAN_CHOOSE).map(
+              (challenge: string) => (
+                <button
+                  key={challenge}
+                  onClick={() => {
+                    if (!tempUser) {
+                      log("There is no user");
+                      return;
+                    }
+                    tempUser.sendMFASelectionAnswer(challenge, {
+                      onSuccess(session) {
+                        log(`sendMFASelectionAnswer - session:`, session);
+                      },
+                      onFailure(err) {
+                        log(`sendMFASelectionAnswer - err:`, err);
+                      },
+                      mfaRequired(challengeName, challengeParameters) {
+                        console.log(
+                          `mfaRequired - challengeParameters:`,
+                          challengeParameters
+                        );
+                        console.log(
+                          `mfaRequired - challengeName:`,
+                          challengeName
+                        );
+                      },
+                      totpRequired(challengeName, challengeParameters) {
+                        console.log(
+                          `totpRequired - challengeParameters:`,
+                          challengeParameters
+                        );
+                        console.log(
+                          `totpRequired - challengeName:`,
+                          challengeName
+                        );
+                      },
+                    });
+                  }}
+                >
+                  {challenge}
+                </button>
+              )
+            )}
+          </div>
+        )}
         <div>
           <input
             type="text"
@@ -383,23 +478,9 @@ function App() {
             onChange={(e) => setOtp(e.target.value)}
           />
           <button onClick={verifySignInOtp}>Verify</button>
-          {mfaRequired && (
-            <span style={{ color: "red" }}> ← MFA is required</span>
-          )}
         </div>
       </Box>
-      <Box>
-        <button onClick={handleGetCurrentAuthUser}>
-          Get current authenticated user
-        </button>
-      </Box>
-      <Box
-        style={{
-          display: "flex",
-          alignItems: "start",
-          alignContent: "space-between",
-        }}
-      >
+      <Box style={{ display: "flex", alignItems: "start" }}>
         <div style={{ flex: 1 }}>
           <button onClick={initiateTotpSetup}>Initiate TOTP setup</button>
           <div>
@@ -414,14 +495,54 @@ function App() {
         </div>
         {otpAuthUri && <QRCodeCanvas size={200} value={otpAuthUri} />}
       </Box>
-      <Box>
+      <Box style={{ maxWidth: "244px" }}>
+        <button onClick={handleGetCurrentAuthUser}>
+          Get current authenticated user
+        </button>
         <button onClick={getPreferredMFAType}>Get preferred MFA type</button>
+        <button
+          onClick={() => {
+            if (!user) return;
+            user.enableMFA((err, result) => {
+              if (err) log(`user.enableMFA - err:`, err);
+              if (result) log(`user.enableMFA - result:`, result);
+            });
+          }}
+        >
+          Enable MFA
+        </button>
+        <button
+          onClick={async () => {
+            if (!user) return;
+            try {
+              const result = await Auth.updateUserAttributes(user, {
+                phone_number: "+639554534759",
+              });
+              log(`updateUserAttributes - result:`, result);
+            } catch (e) {
+              log(`updateUserAttributes - e:`, e);
+            }
+          }}
+        >
+          Add phone number
+        </button>
+        <button
+          onClick={async () => {
+            if (!user) return;
+            user.getMFAOptions((err, result) => {
+              if (result) log(`user.getMFAOptions - result:`, result);
+              if (err) log(`user.getMFAOptions - err:`, err);
+            });
+          }}
+        >
+          Get MFA options
+        </button>
       </Box>
       <Box>
         <button onClick={handleSignOut}>Sign out</button>
       </Box>
-      <Box>
-        <div style={{ display: "flex", justifyContent: "space-between" }}>
+      <Box style={{ maxWidth: "95%" }}>
+        <div style={{ display: "flex" }}>
           <strong>Logs</strong>
           <button onClick={() => setLogs([])}>Clear</button>
         </div>
