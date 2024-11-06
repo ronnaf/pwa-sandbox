@@ -2,9 +2,25 @@ import {
   CognitoHostedUIIdentityProvider,
   CognitoUser,
 } from "@aws-amplify/auth";
+import {
+  CognitoIdentityProviderClient,
+  RespondToAuthChallengeCommand,
+  SetUserMFAPreferenceCommand,
+} from "@aws-sdk/client-cognito-identity-provider";
+import {
+  CognitoAccessToken,
+  CognitoIdToken,
+  CognitoRefreshToken,
+  CognitoUserSession,
+} from "amazon-cognito-identity-js";
 import { Auth, Hub } from "aws-amplify";
 import { QRCodeCanvas } from "qrcode.react";
 import React, { useEffect, useState } from "react";
+
+// Set up the client
+const client = new CognitoIdentityProviderClient({
+  region: "ap-southeast-1",
+});
 
 type FederatedSignInPayload = {
   provider: "Google"; // | 'SignInWithApple';
@@ -249,7 +265,11 @@ function App() {
       const user = await Auth.currentAuthenticatedUser({
         bypassCache: true,
       });
+      const storage = JSON.parse(user.storage[user.userDataKey]);
+      const mfaSettings = storage.UserMFASettingList;
+
       setUser(user);
+      log(`handleGetCurrentAuthUser - mfaSettings:`, mfaSettings);
       log(`handleGetCurrentAuthUser - user:`, user);
     } catch (e) {
       log(`handleGetCurrentAuthUser - e:`, e);
@@ -263,6 +283,17 @@ function App() {
       // If set to true, it will get the MFA type from server-side
       // instead of from local cache.
       const data = await Auth.getPreferredMFA(user, { bypassCache: false });
+
+      // cognitoUser.getUserData((err, data) => {
+      //   if (err) {
+      //     alert(err.message || JSON.stringify(err));
+      //     return;
+      //   }
+      //   const { PreferredMfaSetting, UserMFASettingList } = data;
+      //   console.log(
+      //     JSON.stringify({ PreferredMfaSetting, UserMFASettingList }, null, 2)
+      //   );
+      // });
       log(`getPreferredMFAType - data:`, data);
     } catch (err) {
       log(`getPreferredMFAType - err:`, err);
@@ -297,6 +328,17 @@ function App() {
         user,
         totpSetUpCode
       );
+      const session = await Auth.currentSession();
+      const accessToken = session.getAccessToken().getJwtToken();
+      console.log(`verifyTotpSetUpToken - accessToken:`, accessToken);
+      const command = new SetUserMFAPreferenceCommand({
+        AccessToken: accessToken,
+        EmailMfaSettings: { Enabled: true },
+        SoftwareTokenMfaSettings: { Enabled: true },
+      });
+      const response = await client.send(command);
+      console.log(`verifyTotpSetUpToken - response:`, response);
+
       log(`verifyTotpToken - cognitoUserSession:`, cognitoUserSession);
       // Don't forget to set TOTP as the preferred MFA method.
       // await Auth.setPreferredMFA(user, "TOTP");
@@ -312,9 +354,81 @@ function App() {
     try {
       if (!challengeName) throw new Error("No challenge name");
       if (!tempUser) throw new Error("No temp user");
-      // @ts-expect-error - too lazy to add correct types
-      const result = await Auth.confirmSignIn(tempUser, otp, challengeName);
-      log(`verifySignInOtp - result:`, result);
+      console.log(`verifySignInOtp - otp:`, otp);
+      console.log(`verifySignInOtp - challengeName:`, challengeName);
+      // @ts-expect-error - session not available as type
+      const session = tempUser.Session;
+      console.log(`verifySignInOtp - session:`, session);
+
+      // using aws-amplify
+      // const result = await Auth.confirmSignIn(tempUser, otp, challengeName);
+
+      // using amazon-cognito-identity-js
+      // NOTE: DOES NOT WORK, getting: "Missing required parameter EMAIL_OTP_CODE"
+      // const userData = {
+      //   Username: "ronna.firmo1@gmail.com",
+      //   Pool: userPool,
+      // };
+      // const cognitoUser = new ACIJCognitoUser(userData);
+      // if (!cognitoUser) throw new Error("No cognito user");
+      // cognitoUser.sendMFACode(
+      //   otp,
+      //   {
+      //     onFailure(err) {
+      //       log(`sendMFACode - err:`, err);
+      //     },
+      //     onSuccess(session, userConfirmationNecessary) {
+      //       log(`sendMFACode - session:`, session);
+      //       log(
+      //         `sendMFACode - userConfirmationNecessary:`,
+      //         userConfirmationNecessary
+      //       );
+      //     },
+      //   },
+      //   "EMAIL_OTP"
+      // );
+      // log(`verifySignInOtp - result:`, result);
+
+      // using aws sdk
+      const command = new RespondToAuthChallengeCommand({
+        ClientId: "rre8icrvp0v4edon7dna2c242",
+        ChallengeName: "EMAIL_OTP",
+        Session: session, // Session from the previous InitiateAuth response
+        ChallengeResponses: {
+          USERNAME: tempUser.getUsername(),
+          EMAIL_OTP_CODE: otp, // OTP entered by the user
+        },
+      });
+
+      const response = await client.send(command);
+      if (!response.AuthenticationResult) {
+        throw new Error("No auth result");
+      }
+      if (
+        !response.AuthenticationResult.AccessToken ||
+        !response.AuthenticationResult.IdToken ||
+        !response.AuthenticationResult.RefreshToken
+      ) {
+        throw new Error("No auth tokens");
+      }
+
+      const accessToken = new CognitoAccessToken({
+        AccessToken: response.AuthenticationResult.AccessToken,
+      });
+      const idToken = new CognitoIdToken({
+        IdToken: response.AuthenticationResult.IdToken,
+      });
+      const refreshToken = new CognitoRefreshToken({
+        RefreshToken: response.AuthenticationResult.RefreshToken,
+      });
+      const newSession = new CognitoUserSession({
+        AccessToken: accessToken,
+        IdToken: idToken,
+        RefreshToken: refreshToken,
+      });
+      tempUser.setSignInUserSession(newSession);
+
+      console.log("MFA verification successful:", response);
     } catch (e) {
       log(`verifySignInOtp - e:`, e);
     }
@@ -434,6 +548,7 @@ function App() {
                       log("There is no user");
                       return;
                     }
+                    setChallengeName(challenge);
                     tempUser.sendMFASelectionAnswer(challenge, {
                       onSuccess(session) {
                         log(`sendMFASelectionAnswer - session:`, session);

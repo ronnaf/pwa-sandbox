@@ -10,8 +10,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.682.0",
     "@chakra-ui/react": "^3.0.0",
     "@emotion/react": "^11.13.3",
+    "amazon-cognito-identity-js": "^6.3.13",
     "aws-amplify": "^5.3.12",
     "next-themes": "^0.3.0",
     "qrcode.react": "^4.1.0",
