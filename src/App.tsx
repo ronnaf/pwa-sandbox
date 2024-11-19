@@ -3,6 +3,7 @@ import {
   CognitoUser,
 } from "@aws-amplify/auth";
 import {
+  AuthenticationResultType,
   CognitoIdentityProviderClient,
   RespondToAuthChallengeCommand,
   SetUserMFAPreferenceCommand,
@@ -141,7 +142,8 @@ function App() {
   const [tempUser, setTempUser] = useState<CognitoUser | null>(null);
   const [otpAuthUri, setOtpAuthUri] = useState<string | null>(null);
   const [totpSetUpCode, setTotpSetUpCode] = useState("");
-  const [otp, setOtp] = useState("");
+  const [emailOtp, setEmailOtp] = useState("");
+  const [softwareToken, setSoftwareToken] = useState("");
   const [challengeName, setChallengeName] = useState("");
 
   const log = (origin: string, value?: unknown) => {
@@ -348,17 +350,16 @@ function App() {
     }
   }
 
-  async function verifySignInOtp() {
+  const verifySignInEmailOtp = async () => {
     // Finally, when sign-in with MFA is enabled, use the `confirmSignIn` API
     // to pass the TOTP code and MFA type.
     try {
-      if (!challengeName) throw new Error("No challenge name");
       if (!tempUser) throw new Error("No temp user");
-      console.log(`verifySignInOtp - otp:`, otp);
-      console.log(`verifySignInOtp - challengeName:`, challengeName);
+      console.log(`verifySignInEmailOtp - otp:`, emailOtp);
+      console.log(`verifySignInEmailOtp - challengeName:`, challengeName);
       // @ts-expect-error - session not available as type
       const session = tempUser.Session;
-      console.log(`verifySignInOtp - session:`, session);
+      console.log(`verifySignInEmailOtp - session:`, session);
 
       // using aws-amplify
       // const result = await Auth.confirmSignIn(tempUser, otp, challengeName);
@@ -396,7 +397,7 @@ function App() {
         Session: session, // Session from the previous InitiateAuth response
         ChallengeResponses: {
           USERNAME: tempUser.getUsername(),
-          EMAIL_OTP_CODE: otp, // OTP entered by the user
+          EMAIL_OTP_CODE: emailOtp, // OTP entered by the user
         },
       });
 
@@ -404,35 +405,71 @@ function App() {
       if (!response.AuthenticationResult) {
         throw new Error("No auth result");
       }
-      if (
-        !response.AuthenticationResult.AccessToken ||
-        !response.AuthenticationResult.IdToken ||
-        !response.AuthenticationResult.RefreshToken
-      ) {
-        throw new Error("No auth tokens");
-      }
 
-      const accessToken = new CognitoAccessToken({
-        AccessToken: response.AuthenticationResult.AccessToken,
-      });
-      const idToken = new CognitoIdToken({
-        IdToken: response.AuthenticationResult.IdToken,
-      });
-      const refreshToken = new CognitoRefreshToken({
-        RefreshToken: response.AuthenticationResult.RefreshToken,
-      });
-      const newSession = new CognitoUserSession({
-        AccessToken: accessToken,
-        IdToken: idToken,
-        RefreshToken: refreshToken,
-      });
-      tempUser.setSignInUserSession(newSession);
+      setSignInUserSession(response.AuthenticationResult);
 
       console.log("MFA verification successful:", response);
     } catch (e) {
       log(`verifySignInOtp - e:`, e);
     }
-  }
+  };
+
+  const verifySignInSoftwareToken = async () => {
+    try {
+      if (!tempUser) throw new Error("No temp user");
+      // @ts-expect-error - session not available as type
+      const session = tempUser.Session;
+
+      const command = new RespondToAuthChallengeCommand({
+        ClientId: "rre8icrvp0v4edon7dna2c242",
+        ChallengeName: "SOFTWARE_TOKEN_MFA",
+        Session: session, // Session from the previous InitiateAuth response
+        ChallengeResponses: {
+          USERNAME: tempUser.getUsername(),
+          SOFTWARE_TOKEN_MFA_CODE: softwareToken, // OTP entered by the user
+        },
+      });
+
+      const response = await client.send(command);
+      console.log(`verifySignInSoftwareToken - response:`, response);
+      if (!response.AuthenticationResult) {
+        throw new Error("No auth result");
+      }
+
+      setSignInUserSession(response.AuthenticationResult);
+    } catch (e) {
+      log(`verifySignInOtp - e:`, e);
+    }
+  };
+
+  const setSignInUserSession = (
+    authenticationResult: AuthenticationResultType
+  ) => {
+    if (!tempUser) throw new Error("No temp user");
+    if (
+      !authenticationResult.AccessToken ||
+      !authenticationResult.IdToken ||
+      !authenticationResult.RefreshToken
+    ) {
+      throw new Error("No auth tokens");
+    }
+
+    const accessToken = new CognitoAccessToken({
+      AccessToken: authenticationResult.AccessToken,
+    });
+    const idToken = new CognitoIdToken({
+      IdToken: authenticationResult.IdToken,
+    });
+    const refreshToken = new CognitoRefreshToken({
+      RefreshToken: authenticationResult.RefreshToken,
+    });
+    const newSession = new CognitoUserSession({
+      AccessToken: accessToken,
+      IdToken: idToken,
+      RefreshToken: refreshToken,
+    });
+    tempUser.setSignInUserSession(newSession);
+  };
 
   return (
     <div style={{ display: "flex", flexWrap: "wrap" }}>
@@ -536,63 +573,70 @@ function App() {
         </div>
         <hr style={{ borderStyle: "dashed", color: "gainsboro" }} />
         <div style={{ color: "red" }}>{challengeName}</div>
-        {challengeName === "SELECT_MFA_TYPE" && (
-          <div>
-            {/* @ts-expect-error - challengeParam not available as type */}
-            {JSON.parse(tempUser.challengeParam.MFAS_CAN_CHOOSE).map(
-              (challenge: string) => (
-                <button
-                  key={challenge}
-                  onClick={() => {
-                    if (!tempUser) {
-                      log("There is no user");
-                      return;
-                    }
-                    setChallengeName(challenge);
-                    tempUser.sendMFASelectionAnswer(challenge, {
-                      onSuccess(session) {
-                        log(`sendMFASelectionAnswer - session:`, session);
-                      },
-                      onFailure(err) {
-                        log(`sendMFASelectionAnswer - err:`, err);
-                      },
-                      mfaRequired(challengeName, challengeParameters) {
-                        console.log(
-                          `mfaRequired - challengeParameters:`,
-                          challengeParameters
-                        );
-                        console.log(
-                          `mfaRequired - challengeName:`,
-                          challengeName
-                        );
-                      },
-                      totpRequired(challengeName, challengeParameters) {
-                        console.log(
-                          `totpRequired - challengeParameters:`,
-                          challengeParameters
-                        );
-                        console.log(
-                          `totpRequired - challengeName:`,
-                          challengeName
-                        );
-                      },
-                    });
-                  }}
-                >
-                  {challenge}
-                </button>
-              )
-            )}
-          </div>
-        )}
+        <div>
+          {JSON.parse(tempUser?.challengeParam.MFAS_CAN_CHOOSE ?? "[]").map(
+            (challenge: string) => (
+              <button
+                key={challenge}
+                onClick={() => {
+                  if (!tempUser) {
+                    log("There is no user");
+                    return;
+                  }
+                  setChallengeName(challenge);
+                  tempUser.sendMFASelectionAnswer(challenge, {
+                    onSuccess(session) {
+                      log(`sendMFASelectionAnswer - session:`, session);
+                    },
+                    onFailure(err) {
+                      log(`sendMFASelectionAnswer - err:`, err);
+                    },
+                    mfaRequired(challengeName, challengeParameters) {
+                      console.log(
+                        `mfaRequired - challengeParameters:`,
+                        challengeParameters
+                      );
+                      console.log(
+                        `mfaRequired - challengeName:`,
+                        challengeName
+                      );
+                    },
+                    totpRequired(challengeName, challengeParameters) {
+                      console.log(
+                        `totpRequired - challengeParameters:`,
+                        challengeParameters
+                      );
+                      console.log(
+                        `totpRequired - challengeName:`,
+                        challengeName
+                      );
+                    },
+                  });
+                }}
+              >
+                {challenge}
+              </button>
+            )
+          )}
+        </div>
+        {/* Is it possible to send out a challenge response without choosing mfa method? */}
         <div>
           <input
             type="text"
-            placeholder="OTP"
-            value={otp}
-            onChange={(e) => setOtp(e.target.value)}
+            placeholder="Email OTP"
+            value={emailOtp}
+            onChange={(e) => setEmailOtp(e.target.value)}
           />
-          <button onClick={verifySignInOtp}>Verify</button>
+          <button onClick={verifySignInEmailOtp}>Verify</button>
+        </div>
+        <div>
+          <input
+            type="text"
+            placeholder="Software Token MFA"
+            value={softwareToken}
+            onChange={(e) => setSoftwareToken(e.target.value)}
+          />
+          <button onClick={verifySignInSoftwareToken}>Verify</button>
         </div>
       </Box>
       <Box style={{ display: "flex", alignItems: "start" }}>
