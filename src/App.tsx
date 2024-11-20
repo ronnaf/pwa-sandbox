@@ -17,6 +17,8 @@ import {
 import { Auth, Hub } from "aws-amplify";
 import { QRCodeCanvas } from "qrcode.react";
 import React, { useEffect, useState } from "react";
+import { Box } from "./Box";
+import { InAppPurchase } from "./InAppPurchase";
 
 // Set up the client
 const client = new CognitoIdentityProviderClient({
@@ -41,6 +43,9 @@ declare global {
       messageHandlers?: {
         federatedSignIn?: {
           postMessage?: (payload: FederatedSignInPayload) => Promise<string>;
+        };
+        "iap-products-request"?: {
+          postMessage?: (productIds: string[]) => void;
         };
       };
     };
@@ -84,27 +89,6 @@ const iosShellHandlers = {
     }
   },
 };
-
-type BoxProps = {
-  children: React.ReactNode;
-  style?: React.CSSProperties;
-};
-
-function Box({ children, style }: BoxProps) {
-  return (
-    <div
-      style={{
-        margin: 8,
-        padding: 8,
-        border: "1px solid grey",
-        height: "fit-content",
-        ...style,
-      }}
-    >
-      {children}
-    </div>
-  );
-}
 
 const users = [
   {
@@ -697,6 +681,7 @@ function App() {
           Get MFA options
         </button>
       </Box>
+      <InAppPurchase />
       <Box>
         <button onClick={handleSignOut}>Sign out</button>
       </Box>
