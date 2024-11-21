@@ -19,6 +19,7 @@ import { QRCodeCanvas } from "qrcode.react";
 import React, { useEffect, useState } from "react";
 import { Box } from "./Box";
 import { InAppPurchase } from "./InAppPurchase";
+import { Env } from "./Env";
 
 // Set up the client
 const client = new CognitoIdentityProviderClient({
@@ -457,6 +458,7 @@ function App() {
 
   return (
     <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+      <Env />
       <Box>
         {users.map((user) => (
           <div key={user.email}>
