@@ -21,7 +21,10 @@ declare global {
           postMessage: (productIds: string[]) => void;
         };
         "iap-purchase-request"?: {
-          postMessage: (args: string) => void;
+          postMessage: (value: string) => void;
+        };
+        "iap-transactions-request"?: {
+          postMessage: (value: string) => void;
         };
       };
     };

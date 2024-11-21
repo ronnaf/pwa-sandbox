@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 
 import { Box } from "./Box";
+import { Hr } from "./Hr";
 
 const sampleProducts =
   '[{"attributes":{"description":{"standard":""},"icuLocale":"en_US@currency=USD","isFamilyShareable":0,"kind":"Auto-Renewable Subscription","name":"","offerName":"essential","offers":[{"currencyCode":"USD","discounts":[],"price":"19","priceFormatted":"$19.00","recurringSubscriptionPeriod":"P1M"}],"subscriptionFamilyId":"E5EFF888","subscriptionFamilyName":"Primary","subscriptionFamilyRank":1},"href":"/v1/catalog/usa/in-apps/5BF4AB4E","id":"5BF4AB4E","type":"in-apps"},{"attributes":{"description":{"standard":""},"icuLocale":"en_US@currency=USD","isFamilyShareable":0,"kind":"Auto-Renewable Subscription","name":"","offerName":"plus","offers":[{"currencyCode":"USD","discounts":[],"price":"24","priceFormatted":"$24.00","recurringSubscriptionPeriod":"P1M"}],"subscriptionFamilyId":"E5EFF888","subscriptionFamilyName":"Primary","subscriptionFamilyRank":2},"href":"/v1/catalog/usa/in-apps/98BDFA3D","id":"98BDFA3D","type":"in-apps"},{"attributes":{"description":{"standard":""},"icuLocale":"en_US@currency=USD","isFamilyShareable":0,"kind":"Auto-Renewable Subscription","name":"","offerName":"advanced","offers":[{"currencyCode":"USD","discounts":[],"price":"29","priceFormatted":"$29.00","recurringSubscriptionPeriod":"P1M"}],"subscriptionFamilyId":"E5EFF888","subscriptionFamilyName":"Primary","subscriptionFamilyRank":3},"href":"/v1/catalog/usa/in-apps/D305D8F1","id":"D305D8F1","type":"in-apps"}]';
@@ -37,14 +38,7 @@ type Props = {
 
 export const IAP = ({ log }: Props) => {
   const [products, setProducts] = useState<Product[]>([]);
-
-  function fetchProducts() {
-    window.webkit?.messageHandlers?.["iap-products-request"]?.postMessage([
-      "essential",
-      "plus",
-      "advanced",
-    ]);
-  }
+  const [transactions, setTransactions] = useState<unknown[]>([]);
 
   useEffect(() => {
     const eventName = "iap-products-result";
@@ -61,12 +55,42 @@ export const IAP = ({ log }: Props) => {
   useEffect(() => {
     const eventName = "iap-purchase-result";
     window.addEventListener(eventName, (event) => {
-      log("iap-products-result", event.detail);
+      log(eventName, event.detail);
     });
     return () => {
       window.removeEventListener(eventName, () => {});
     };
   }, [log]);
+
+  useEffect(() => {
+    const eventName = "iap-purchase-transaction";
+    window.addEventListener(eventName, (event) => {
+      log(eventName, event.detail);
+    });
+    return () => {
+      window.removeEventListener(eventName, () => {});
+    };
+  }, [log]);
+
+  useEffect(() => {
+    const eventName = "iap-transactions-result";
+    window.addEventListener(eventName, (event) => {
+      log(eventName, event.detail);
+      const parsed = JSON.parse(event.detail);
+      setTransactions(parsed);
+    });
+    return () => {
+      window.removeEventListener(eventName, () => {});
+    };
+  }, [log]);
+
+  function getProducts() {
+    window.webkit?.messageHandlers?.["iap-products-request"]?.postMessage([
+      "essential",
+      "plus",
+      "advanced",
+    ]);
+  }
 
   function sendPurchaseRequest(offerName: string) {
     window.webkit?.messageHandlers?.["iap-purchase-request"]?.postMessage(
@@ -74,10 +98,16 @@ export const IAP = ({ log }: Props) => {
     );
   }
 
+  function getTransactions() {
+    window.webkit?.messageHandlers?.["iap-transactions-request"]?.postMessage(
+      "request"
+    );
+  }
+
   return (
     <Box>
       <strong>In-App Purchase</strong>
-      <button onClick={fetchProducts}>Fetch products</button>
+      <button onClick={getProducts}>Get products</button>
       <div>
         {products.map((product) => (
           <Box key={product.id} style={{ display: "flex" }}>
@@ -93,6 +123,14 @@ export const IAP = ({ log }: Props) => {
               buy
             </button>
           </Box>
+        ))}
+      </div>
+      <Hr />
+      <strong>Transactions</strong>
+      <button onClick={getTransactions}>Get transactions</button>
+      <div>
+        {transactions.map((transaction, i) => (
+          <div key={i}>{JSON.stringify(transaction, undefined, 2)}</div>
         ))}
       </div>
     </Box>
