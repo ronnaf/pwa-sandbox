@@ -32,13 +32,38 @@ interface Product {
   type: string;
 }
 
+interface Transaction {
+  storefrontId: string;
+  deviceVerification: string;
+  quantity: number;
+  isUpgraded: boolean;
+  productId: string;
+  expiresDate: number;
+  currency: string;
+  webOrderLineItemId: string;
+  type: string;
+  storefront: string;
+  bundleId: string;
+  originalTransactionId: string;
+  price: number;
+  transactionReason: string;
+  transactionId: string;
+  environment: string;
+  deviceVerificationNonce: string;
+  inAppOwnershipType: string;
+  signedDate: number;
+  originalPurchaseDate: number;
+  purchaseDate: number;
+  subscriptionGroupIdentifier: string;
+}
+
 type Props = {
   log: (origin: string, value?: unknown) => void;
 };
 
 export const IAP = ({ log }: Props) => {
   const [products, setProducts] = useState<Product[]>([]);
-  const [transactions, setTransactions] = useState<unknown[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
 
   useEffect(() => {
     const eventName = "iap-products-result";
@@ -129,8 +154,14 @@ export const IAP = ({ log }: Props) => {
       <strong>Transactions</strong>
       <button onClick={getTransactions}>Get transactions</button>
       <div>
-        {transactions.map((transaction, i) => (
-          <div key={i}>{JSON.stringify(transaction, undefined, 2)}</div>
+        {transactions.map((transaction) => (
+          <div key={transaction.transactionId}>
+            <div>ID: {transaction.originalTransactionId}</div>
+            <div>Purchase date: {transaction.purchaseDate}</div>
+            <div>Product: {transaction.productId}</div>
+            <div>In-app ownership type: {transaction.inAppOwnershipType}</div>
+            <div>Type: {transaction.type}</div>
+          </div>
         ))}
       </div>
     </Box>
