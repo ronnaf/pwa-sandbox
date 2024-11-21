@@ -49,10 +49,12 @@ export const InAppPurchase = ({
   useEffect(() => {
     const eventName = "iap-products-result";
     window.addEventListener(eventName, (event) => {
-      console.log(`window.addEventListener - event:`, event);
       log("iap-products-result", event);
       if (event && event.detail) {
-        setProducts(JSON.parse(event.detail));
+        console.log(`window.addEventListener - event.detail:`, event.detail);
+        const parsed = JSON.parse(event.detail);
+        console.log(`window.addEventListener - parsed:`, parsed);
+        setProducts(parsed);
       }
     });
     return () => {

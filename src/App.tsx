@@ -683,7 +683,7 @@ function App() {
           Get MFA options
         </button>
       </Box>
-      <InAppPurchase />
+      <InAppPurchase log={log} />
       <Box>
         <button onClick={handleSignOut}>Sign out</button>
       </Box>
