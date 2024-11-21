@@ -9,7 +9,6 @@ export function Box({ children, style }: BoxProps) {
   return (
     <div
       style={{
-        margin: 8,
         padding: 8,
         border: "1px solid grey",
         height: "fit-content",

@@ -456,7 +456,7 @@ function App() {
   };
 
   return (
-    <div style={{ display: "flex", flexWrap: "wrap" }}>
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
       <Box>
         {users.map((user) => (
           <div key={user.email}>
