@@ -18,40 +18,14 @@ import { Auth, Hub } from "aws-amplify";
 import { QRCodeCanvas } from "qrcode.react";
 import React, { useEffect, useState } from "react";
 import { Box } from "./Box";
-import { InAppPurchase } from "./InAppPurchase";
+import { IAP } from "./IAP";
 import { Env } from "./Env";
+import { PostMessageData } from "./types";
 
 // Set up the client
 const client = new CognitoIdentityProviderClient({
   region: "ap-southeast-1",
 });
-
-type FederatedSignInPayload = {
-  provider: "Google"; // | 'SignInWithApple';
-};
-
-type PostMessageData = {
-  idToken: string;
-  expiresAt: string;
-  name: string;
-  email?: string;
-  picture?: string;
-};
-
-declare global {
-  interface Window {
-    webkit?: {
-      messageHandlers?: {
-        federatedSignIn?: {
-          postMessage?: (payload: FederatedSignInPayload) => Promise<string>;
-        };
-        "iap-products-request"?: {
-          postMessage?: (productIds: string[]) => void;
-        };
-      };
-    };
-  }
-}
 
 const randomId = () =>
   Math.random().toString(36).substring(2, 15) +
@@ -132,6 +106,7 @@ function App() {
   const [challengeName, setChallengeName] = useState("");
 
   const log = (origin: string, value?: unknown) => {
+    console.log(origin, value);
     const parsedValue =
       value instanceof Error
         ? { message: value.message, name: value.name }
@@ -683,7 +658,7 @@ function App() {
           Get MFA options
         </button>
       </Box>
-      <InAppPurchase log={log} />
+      <IAP log={log} />
       <Box>
         <button onClick={handleSignOut}>Sign out</button>
       </Box>

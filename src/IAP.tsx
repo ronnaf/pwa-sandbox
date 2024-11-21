@@ -31,15 +31,15 @@ interface Product {
   type: string;
 }
 
-export const InAppPurchase = ({
-  log,
-}: {
+type Props = {
   log: (origin: string, value?: unknown) => void;
-}) => {
+};
+
+export const IAP = ({ log }: Props) => {
   const [products, setProducts] = useState<Product[]>([]);
 
   function fetchProducts() {
-    window.webkit?.messageHandlers?.["iap-products-request"]?.postMessage?.([
+    window.webkit?.messageHandlers?.["iap-products-request"]?.postMessage([
       "essential",
       "plus",
       "advanced",
@@ -49,18 +49,30 @@ export const InAppPurchase = ({
   useEffect(() => {
     const eventName = "iap-products-result";
     window.addEventListener(eventName, (event) => {
-      log("iap-products-result", event);
-      if (event && event.detail) {
-        console.log(`window.addEventListener - event.detail:`, event.detail);
-        const parsed = JSON.parse(event.detail);
-        console.log(`window.addEventListener - parsed:`, parsed);
-        setProducts(parsed);
-      }
+      log(eventName, event.detail);
+      const parsed = JSON.parse(event.detail);
+      setProducts(parsed);
     });
     return () => {
       window.removeEventListener(eventName, () => {});
     };
   }, [log]);
+
+  useEffect(() => {
+    const eventName = "iap-purchase-result";
+    window.addEventListener(eventName, (event) => {
+      log("iap-products-result", event.detail);
+    });
+    return () => {
+      window.removeEventListener(eventName, () => {});
+    };
+  }, [log]);
+
+  function sendPurchaseRequest(offerName: string) {
+    window.webkit?.messageHandlers?.["iap-purchase-request"]?.postMessage(
+      JSON.stringify({ productID: offerName, quantity: 1 })
+    );
+  }
 
   return (
     <Box>
@@ -75,7 +87,11 @@ export const InAppPurchase = ({
               <div>{product.attributes.kind}</div>
               <div>{product.attributes.offers[0].priceFormatted}</div>
             </div>
-            <button>buy</button>
+            <button
+              onClick={() => sendPurchaseRequest(product.attributes.offerName)}
+            >
+              buy
+            </button>
           </Box>
         ))}
       </div>
