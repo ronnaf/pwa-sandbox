@@ -17,10 +17,11 @@ import {
 import { Auth, Hub } from "aws-amplify";
 import { QRCodeCanvas } from "qrcode.react";
 import React, { useEffect, useState } from "react";
-import { Box } from "./Box";
-import { IAP } from "./IAP";
-import { Env } from "./Env";
+import { Box } from "./box";
+import { IAP } from "./iap";
+import { Env } from "./env";
 import { PostMessageData } from "./types";
+import { Analytics } from "./analytics";
 
 // Set up the client
 const client = new CognitoIdentityProviderClient({
@@ -659,6 +660,7 @@ function App() {
         </button>
       </Box>
       <IAP log={log} />
+      <Analytics />
       <Box>
         <button onClick={handleSignOut}>Sign out</button>
       </Box>

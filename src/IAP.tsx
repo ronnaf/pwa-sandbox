@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from "react";
 
-import { Box } from "./Box";
-import { Hr } from "./Hr";
+import { Box } from "./box";
+import { Hr } from "./hr";
 
 const sampleProducts =
   '[{"attributes":{"description":{"standard":""},"icuLocale":"en_US@currency=USD","isFamilyShareable":0,"kind":"Auto-Renewable Subscription","name":"","offerName":"essential","offers":[{"currencyCode":"USD","discounts":[],"price":"19","priceFormatted":"$19.00","recurringSubscriptionPeriod":"P1M"}],"subscriptionFamilyId":"E5EFF888","subscriptionFamilyName":"Primary","subscriptionFamilyRank":1},"href":"/v1/catalog/usa/in-apps/5BF4AB4E","id":"5BF4AB4E","type":"in-apps"},{"attributes":{"description":{"standard":""},"icuLocale":"en_US@currency=USD","isFamilyShareable":0,"kind":"Auto-Renewable Subscription","name":"","offerName":"plus","offers":[{"currencyCode":"USD","discounts":[],"price":"24","priceFormatted":"$24.00","recurringSubscriptionPeriod":"P1M"}],"subscriptionFamilyId":"E5EFF888","subscriptionFamilyName":"Primary","subscriptionFamilyRank":2},"href":"/v1/catalog/usa/in-apps/98BDFA3D","id":"98BDFA3D","type":"in-apps"},{"attributes":{"description":{"standard":""},"icuLocale":"en_US@currency=USD","isFamilyShareable":0,"kind":"Auto-Renewable Subscription","name":"","offerName":"advanced","offers":[{"currencyCode":"USD","discounts":[],"price":"29","priceFormatted":"$29.00","recurringSubscriptionPeriod":"P1M"}],"subscriptionFamilyId":"E5EFF888","subscriptionFamilyName":"Primary","subscriptionFamilyRank":3},"href":"/v1/catalog/usa/in-apps/D305D8F1","id":"D305D8F1","type":"in-apps"}]';
+
+const sampleTransaction = "{\"currency\":\"USD\",\"expiresDate\":1734762724177,\"originalPurchaseDate\":1732170724177,\"deviceVerificationNonce\":\"3186643f-076a-4c21-9cef-160ad293765b\",\"bundleId\":\"app.vercel.cp-pwa-sandbox\",\"signedDate\":1732174402147,\"subscriptionGroupIdentifier\":\"E5EFF888\",\"webOrderLineItemId\":\"0\",\"productId\":\"essential\",\"price\":19000,\"isUpgraded\":false,\"transactionReason\":\"PURCHASE\",\"deviceVerification\":\"4zkX0XWBZ57OrtmTRELSk6W1jRAD83JjsUDyIsxljiDyCM3kwGa5YIs2eugQOEIp\",\"environment\":\"Xcode\",\"inAppOwnershipType\":\"PURCHASED\",\"type\":\"Auto-Renewable Subscription\",\"originalTransactionId\":\"0\",\"storefront\":\"USA\",\"transactionId\":\"0\",\"quantity\":1,\"purchaseDate\":1732170724177,\"storefrontId\":\"143441\"}"
 
 interface Product {
   attributes: {
